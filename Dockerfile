@@ -9,7 +9,7 @@ RUN apt-get update \
 RUN corepack enable
 
 ARG PAPERCLIP_REPO=https://github.com/paperclipai/paperclip.git
-ARG PAPERCLIP_REF=v2026.416.0
+ARG PAPERCLIP_REF=v2026.707.0
 
 WORKDIR /paperclip
 RUN git clone --depth 1 --branch "${PAPERCLIP_REF}" "${PAPERCLIP_REPO}" .
@@ -37,6 +37,8 @@ RUN apt-get update \
     git \
     jq \
     openssh-client \
+    python3 \
+    python3-venv \
     ripgrep \
     && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
@@ -55,6 +57,15 @@ RUN chmod +x /wrapper/entrypoint.sh
 # Optional local adapters/tools parity with upstream Dockerfile.
 RUN npm install --global --omit=dev @anthropic-ai/claude-code@latest @openai/codex@latest opencode-ai
 RUN npm install --global --omit=dev tsx
+
+# Hermes Agent for Paperclip's built-in hermes_local adapter, which forks the
+# `hermes` CLI as a child process on this host — so it must be on PATH here.
+# Pinned venv keeps it isolated from any system Python packages.
+ARG HERMES_AGENT_VERSION=0.18.2
+RUN python3 -m venv /opt/hermes \
+    && /opt/hermes/bin/pip install --no-cache-dir "hermes-agent==${HERMES_AGENT_VERSION}" \
+    && ln -s /opt/hermes/bin/hermes /usr/local/bin/hermes \
+    && hermes --version
 RUN mkdir -p /paperclip \
     && chown -R node:node /app /paperclip /wrapper
 
